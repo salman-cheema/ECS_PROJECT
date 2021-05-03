@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  VPCID:
+    Type: 'String'
+Resources:
+  PrivateNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: !Sub '${ProjectName}-EcsMongoNamespace-${ProjectEnvironment}'
+      Vpc: !Ref VPCID
+  MongoDiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      Description: Discovery Service for the Demo Application
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+          - TTL: 60
+            Type: SRV
+      Name: !Sub '${ProjectName}-EcsMongoServiceDiscovery-${ProjectEnvironment}'
+      NamespaceId: !Ref PrivateNamespace
+Outputs:
+  MongoServiceDiscovery:
+    Description: The name which is given to Discovery Service of Mongo. 
+    Value: !GetAtt MongoDiscoveryService.Name
+  MongoServiceDiscoveryArn:
+    Description: Arn of service Mongo Service Discovery.
+    Value: !GetAtt MongoDiscoveryService.Arn
+  NamespaceId:
+    Value: !Sub '${ProjectName}-EcsMongoNamespace-${ProjectEnvironment}'

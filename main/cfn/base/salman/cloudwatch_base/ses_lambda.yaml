@@ -1,0 +1,43 @@
+Parameters:
+  LambdaRoleArn:
+    Description: This is the role lambda need to perform actions
+    Type: String
+  projectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  projectEnvironment:
+    Type : 'String'
+    Default: 'dev'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  cflambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Tags:
+          - Key: "Name"
+            Value: !Sub '${projectName}-Lambdafunction-${projectEnvironment}'
+          - Key: "Project"
+            Value: !Ref projectName
+          - Key: "Environment"
+            Value: !Ref projectEnvironment
+          - Key: "Stack"
+            Value: !Ref AWS::StackName
+          - Key: "CreatedBy"
+            Value: !Ref CreatedBy
+      FunctionName: cf_ses_lambda_salman
+      Handler : ses_lambda.lambda_handler
+      Runtime : python3.7
+      Timeout : 60
+      Code:
+        S3Bucket: "salman-cloudformation-scripts"
+        S3Key: "lambda/code/ses_lambda.zip"
+      Role: !Ref LambdaRoleArn
+Outputs:
+  LambdaArn:
+    Value: !GetAtt cflambda.Arn
+    Export:
+      Name: LambdaArn

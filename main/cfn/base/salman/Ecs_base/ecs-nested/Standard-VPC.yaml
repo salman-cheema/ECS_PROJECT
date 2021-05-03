@@ -1,0 +1,290 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC Cloudformation Template using 2 AZs. Each AZ has 1 public (with Internet Gateway attachment) and 1 private subnet (with NAT Gateway attachment)'
+
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'Training'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-VPC-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+  
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PrivateSubnet01-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy          
+      VpcId: !Ref VPC
+
+  PrivateSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-east-1d
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PrivateSubnet02-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy          
+      VpcId: !Ref VPC
+
+  EIP:
+   Type: AWS::EC2::EIP
+   Properties:
+      Domain: vpc
+
+  NatGateway:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId: !GetAtt EIP.AllocationId
+      SubnetId: !Ref PublicSubnet01
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-NatGateway-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy          
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PrivateRouteTable-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+
+  PrivateRoute:
+   Type: AWS::EC2::Route
+   Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateRTBToPublicSubnet01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet01
+      RouteTableId: !Ref PrivateRouteTable
+  
+  PrivateRTBToPublicSubnet02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet02
+      RouteTableId: !Ref PrivateRouteTable
+
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-east-1a
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PublicSubnet01-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+      VpcId: !Ref VPC
+
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: us-east-1d
+      CidrBlock: 10.0.4.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PublicSubnet02-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+      VpcId: !Ref VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-InternetGateway-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-PublicRouteTable-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRTBToPublicSubnet01:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicRouteTable
+  
+  PublicRTBToPublicSubnet02:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicRouteTable
+
+  #Security Groups
+  PrivateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-Private-sg-${ProjectEnvironment}"
+      GroupDescription: !Sub "${ProjectName} Private SecurityGroup ${ProjectEnvironment}"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-Private-sg-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy             
+
+  PublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-Public-sg-${ProjectEnvironment}"
+      GroupDescription: !Sub "${ProjectName} Public SecurityGroup ${ProjectEnvironment}"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 0
+        ToPort: 65535
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-Public-sg-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+Outputs:
+  VpcId:
+    Description: Id of VPC. 
+    Value: !Ref VPC
+    Export: 
+      Name: VpcId
+  SubnetId01:
+    Description: Public Subnet01 Id. 
+    Value: !Ref PublicSubnet01
+    Export: 
+      Name: PublicSubnet01   
+  SubnetId02:
+    Description: Public Subnet02 Id. 
+    Value: !Ref PublicSubnet02
+    Export: 
+      Name: PublicSubnet02
+
+
+

@@ -1,0 +1,38 @@
+version: 0.2
+env:
+  variables:
+    RepoName: "salman-mongo-flask"
+#   parameter-store:
+#     LOGIN_PASSWORD: /CodeBuild/dockerLoginPassword   
+phases:
+  install: # Install AWS cli, kubectl
+    commands:
+       - echo insatll phase
+  pre_build:
+    commands:
+      - echo logging in to AWS ECR...
+      - echo reponame is $RepoName
+      - echo region is $AWS_REGION
+      - echo region is $AWS_ACCOUNT_ID
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$RepoName
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $RepoName:$CODEBUILD_BUILD_NUMBER .
+      - docker tag $RepoName:$CODEBUILD_BUILD_NUMBER $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$RepoName:$CODEBUILD_BUILD_NUMBER
+    finally:
+      - echo This always runs even if the login command fails 
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$RepoName:$CODEBUILD_BUILD_NUMBER
+      - printf '{"FlaskImage":"%s"}' "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$RepoName:$CODEBUILD_BUILD_NUMBER" > /tmp/build.json
+      - cat /tmp/build.json
+    finally:
+      - echo This always runs even if the login command fails
+artifacts:
+  files: /tmp/build.json
+  discard-paths: yes
+  name: BuildOutput

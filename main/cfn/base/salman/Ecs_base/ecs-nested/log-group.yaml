@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  LogGroup: 
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '${ProjectName}-LogGroup-${ProjectEnvironment}'
+Outputs:
+  LogGroup:
+    Description: Log group whcih will be used to get logs of all the container running at ECS.
+    Value: !Ref LogGroup

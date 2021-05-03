@@ -1,0 +1,10 @@
+{
+    "Parameters" : {
+        "ProjectName" : "ecs",
+        "ProjectEnvironment" : "test",
+        "CreatedBy" : " suleman cheema",
+        "FlaskImage":"<FlaskImage>",
+        "KeyName":"salman_devops"
+
+    }
+}

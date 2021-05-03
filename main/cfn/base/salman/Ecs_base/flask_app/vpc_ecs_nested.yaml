@@ -1,0 +1,41 @@
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+  KeyName:
+    Type : 'String'
+    Description: Identifies a key for ECS workers.
+  FlaskImage:
+    Type : 'String'
+    Description: Identifies a Image in ECR which will be deployed on ecs.
+  
+Resources:
+  vpcstandard:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/projct/ecs/cluster/Standard-VPC.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+  ecs:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/projct/ecs/cluster/parentstack-ecs.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        VPCID: !GetAtt vpcstandard.Outputs.VpcId
+        SubnetId1: !GetAtt vpcstandard.Outputs.SubnetId01
+        SubnetId2: !GetAtt vpcstandard.Outputs.SubnetId02
+        KeyName: !Ref KeyName
+        FlaskImage: !Ref FlaskImage
+    DependsOn: vpcstandard

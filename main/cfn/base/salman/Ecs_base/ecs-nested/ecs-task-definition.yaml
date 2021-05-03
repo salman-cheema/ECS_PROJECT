@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  MongoImage:
+    Type: 'String'
+    Default: mongo:latest
+    Description: give the url of image which is present at dockerhub or ECR.
+  FlaskImage:
+    Type: 'String'
+    Description: Give the url of flask image whcih you have build and pushed on ECR/DockerHub
+  NamespaceId:
+    Type: 'String'
+  MongoServiceDiscoveryName:
+    Type: 'String'
+  LogGroupName:
+    Type: 'String'
+Resources:
+  TaskdefinitionMongo:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-mongo_task_definition-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      Family: !Sub '${ProjectName}-mongo_family-${ProjectEnvironment}'
+      Cpu: 512
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - EC2
+      ContainerDefinitions:
+        - Name: !Sub '${ProjectName}-mongo_task_definition-${ProjectEnvironment}' 
+          Image: !Ref MongoImage
+          Essential: true
+          MountPoints:
+            - SourceVolume: rexray-vol
+              ContainerPath: /data/db
+          PortMappings:
+            - ContainerPort: 27017
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-create-group: true
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+      Volumes:
+        - Name: rexray-vol
+          DockerVolumeConfiguration:
+            Autoprovision: true
+            Scope: shared
+            Driver: rexray/ebs
+            DriverOpts:
+              volumetype: gp2
+              size: 5
+  TaskdefinitionFlask:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-mongo_task_definition-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      Family: !Sub '${ProjectName}-mongo_family-${ProjectEnvironment}'
+      Family: !Sub '${ProjectName}-flask_family-${ProjectEnvironment}'  
+      Cpu: 512
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - EC2
+      ContainerDefinitions:
+        - Name: !Sub '${ProjectName}-flask_task_definition-${ProjectEnvironment}' 
+          Image: !Ref FlaskImage
+          Essential: true
+          Environment: 
+            - Name: mongo
+              Value: !Sub '${MongoServiceDiscoveryName}.${NamespaceId}'
+          PortMappings:
+            - ContainerPort: 5011
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroupName
+              awslogs-create-group: true
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+Outputs:
+  TaskdefinitionFlask:
+    Description: Task definition of flask which will be used to deploy a service of flask
+    Value: !Ref TaskdefinitionFlask
+  TaskdefinitionMongo:
+    Description: Task definition of mongo which will be used to deploy a service of mongo
+    Value: !Ref TaskdefinitionMongo
+  ContainerDefinitionFlask:
+    Value: !Sub '${ProjectName}-flask_task_definition-${ProjectEnvironment}' 
+  ContainerDefinitionMongo:
+    Value: !Sub '${ProjectName}-mongo_task_definition-${ProjectEnvironment}' 

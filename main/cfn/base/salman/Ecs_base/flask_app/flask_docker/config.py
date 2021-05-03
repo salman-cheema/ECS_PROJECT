@@ -1,0 +1,3 @@
+
+MONGO_PORT = 27017
+MONGO_CONNECTION = str(':') + str(MONGO_PORT)

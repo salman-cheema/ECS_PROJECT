@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: In this pipekine I am going to test param-overrides and artfoacts output.
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'dev'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  CodePipelineArn:
+    Type: 'String'
+    Description: Role Aws CodePipeline will used to access AWS resources.
+  CloudFormationRoleArn:
+    Type: 'String'
+    Description: Role which cloudforamtion will used to create, update, or delete stacks.
+  BranchName:
+    Type: 'String'
+    Description: Branch will be get as a source from codecommit.
+  RepoName:
+    Type: 'String'
+    Description: Repository will be used as source from codecommit.
+  ConfigProjectName:
+    Type: 'String'
+    Description: A Project which was created by codebuild stack and it is going to be used in codebuild action stage.
+  ParamJson:
+    Type: 'String'
+    Description:  A json file name present at source code, which codepipeline needed when it has to deploy cfn action.
+  TemplateFile:
+    Type: 'String'
+    Description:  A Template file name present at source code, which codepipeline needed when it has to deploy cfn action.
+Resources:
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-FlaskPipeline-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      ArtifactStore:
+        Location: salman-cloudformation-scripts
+        Type : S3
+      Name: !Sub '${ProjectName}-CodeBuildPipeline-${ProjectEnvironment}'
+      RestartExecutionOnUpdate: True
+      RoleArn: !Ref CodePipelineArn
+      Stages:
+        -
+          Name: !Sub '${ProjectName}-FlaskCodeCommitSource-${ProjectEnvironment}' 
+          Actions:
+            -
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Name: !Sub '${ProjectName}-FlaskCodeCommitAction-${ProjectEnvironment}' 
+              Configuration:
+                BranchName: !Ref BranchName
+                RepositoryName: !Ref RepoName
+              OutputArtifacts: 
+                -
+                  Name: !Sub '${ProjectName}-FlaskCodeCommitOutputArtifact-${ProjectEnvironment}'
+              Region : us-east-1
+              RunOrder: 1 
+        -
+          Name: !Sub '${ProjectName}-FlaskCodeBuildStage-${ProjectEnvironment}' 
+          Actions:
+            -
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Name: !Sub '${ProjectName}-FlaskCodeBuildAction-${ProjectEnvironment}' 
+              Configuration:
+                ProjectName: !Ref ConfigProjectName
+              InputArtifacts:
+                - 
+                  Name: !Sub '${ProjectName}-FlaskCodeCommitOutputArtifact-${ProjectEnvironment}'
+              OutputArtifacts:
+                -
+                  Name: ImageTagArtifact # to produce a variable from one action for another action/stage we 
+                  # create key:value variable for that we use lambda invoke which get access to all configuration of
+                  # codepipline and that function create a variable.
+        - 
+          Name: !Sub '${ProjectName}-VpcEcsCfnPipelineStage-${ProjectEnvironment}'
+          Actions:
+            - Name: !Sub '${ProjectName}-VpcEcsCfnPipelineAction-${ProjectEnvironment}'
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
+                StackName: !Sub '${ProjectName}-ECSVPC-${ProjectEnvironment}'
+                RoleArn: !Ref CloudFormationRoleArn
+                TemplateConfiguration: !Sub '${ProjectName}-FlaskCodeCommitOutputArtifact-${ProjectEnvironment}::${ParamJson}'
+                TemplatePath: !Sub '${ProjectName}-FlaskCodeCommitOutputArtifact-${ProjectEnvironment}::${TemplateFile}'
+                ParameterOverrides: |
+                  {
+                    "FlaskImage" : { "Fn::GetParam" : ["ImageTagArtifact", "build.json", "FlaskImage"]}
+                  }
+              InputArtifacts:
+                - Name: !Sub '${ProjectName}-FlaskCodeCommitOutputArtifact-${ProjectEnvironment}'
+                - Name: ImageTagArtifact
+              RunOrder: '1'
+
+
+

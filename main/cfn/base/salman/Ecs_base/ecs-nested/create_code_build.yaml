@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template to create Build project of codebuild
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'Training'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  RepoName:
+    Type: 'String'
+    Description: IDentifies the RepoName as a source for codebuild.
+  BranchName:
+    Type: 'String'
+    Description: Give the branch name of repo which will be used for codebuild.
+  CodeBuildRole:
+    Type: 'String'
+    Description: Role which codebuild will use to access other AWS services.
+Resources:
+  FlaskCodeBuild:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Description: This project will take code from codecommit and create it's docker image and push it to ECR.
+      SourceVersion: !Ref BranchName
+      Source: #required
+        Location: 
+          Fn::Sub:
+          - "https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${RepositoryName}"
+          - RepositoryName: !Ref RepoName
+        Type: "CODECOMMIT"
+        GitCloneDepth: 1
+      Name: !Sub '${ProjectName}-CodeBuild-${RepoName}-${ProjectEnvironment}'
+      Artifacts: #required
+        Type: NO_ARTIFACTS
+      ServiceRole: !Ref CodeBuildRole #required
+      Environment: # required
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-CodeBuild-${RepoName}-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+Outputs:
+  ConfigProjectName:
+    Value: !Ref FlaskCodeBuild

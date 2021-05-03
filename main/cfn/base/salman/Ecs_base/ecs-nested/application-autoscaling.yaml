@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  ApplicationAutoScalingRoleArn:
+    Type: 'String'
+  ClusterName:
+    Type: 'String'
+  FlaskServiceName:
+    Type: 'String'
+Resources:
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      RoleARN: !Ref ApplicationAutoScalingRoleArn
+      ResourceId: !Join [ "/", [ service,!Ref ClusterName,!Ref FlaskServiceName ] ]
+      #!Join [ "/", [ service,!Ref ECSCluster, !GetAtt FlaskService.Name ] ]
+      ServiceNamespace: ecs
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 1
+      MaxCapacity: 5
+  ScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-flaskservice-auto-scaling-policy-${ProjectEnvironment}'
+      ## Here I have used target type scaling
+      ## load testing `ab -c 1 -n 100000 -t 600 lb.dns`
+      ## we can use Step-scaling I did that with console and for that we have to create cloudwatch alarm
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 20.0

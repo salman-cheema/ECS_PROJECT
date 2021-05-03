@@ -1,0 +1,189 @@
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'dev'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  CodebuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Allow Codebuild to access other AWS  services
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-CodeBuildRole-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: [codebuild.amazonaws.com]
+        Version: '2012-10-17'
+      Path: /
+      RoleName: !Sub '${ProjectName}-CodeBuildRole-${ProjectEnvironment}'
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-CodeBuildPolicy-${ProjectEnvironment}'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Action:
+                - 'logs:*'
+                - "s3:*"
+                - "codecommit:*"
+                - "ecr:*"
+                Effect: Allow
+                Resource: '*'
+  CodepipelineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description:  A service role is required to create a pipeline, 
+      # and the pipeline is always associated to that service role.
+      # If we create a Pipeline from condole AWS take care of it but to 
+      # make codepipeline from cfn we have to make this service role.
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-CodepipelineRole-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "codepipeline.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      RoleName: !Sub '${ProjectName}-CodepipelineRole-${ProjectEnvironment}'
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-CodepipelinePolicy-${ProjectEnvironment}'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - 
+                Effect: Allow
+                Action:
+                - "codecommit:GetBranch"
+                - "codecommit:GetCommit"
+                - "codecommit:UploadArchive"
+                - "codecommit:GetUploadArchiveStatus"      
+                - "codecommit:CancelUploadArchive"
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action:
+                - "cloudformation:CreateStack"
+                - "cloudformation:DeleteStack"
+                - "cloudformation:DescribeStacks"
+                - "cloudformation:UpdateStack"
+                - "cloudformation:CreateChangeSet"
+                - "cloudformation:DeleteChangeSet"
+                - "cloudformation:DescribeChangeSet"
+                - "cloudformation:ExecuteChangeSet"
+                - "cloudformation:SetStackPolicy"
+                - "cloudformation:ValidateTemplate"
+                - "iam:PassRole"
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action:
+                - "codebuild:BatchGetBuilds"
+                - "codebuild:StartBuild"
+                Resource: '*'
+              - 
+                Effect: Allow
+                Action:
+                - "s3:*"
+                Resource: '*'
+  CfnServiceRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Sub '${ProjectName}-CfnServiceRole-${ProjectEnvironment}'
+        Path: /service/
+        Tags:
+          - Key: "Name"
+            Value: !Sub '${ProjectName}-CfnServiceRole-${ProjectEnvironment}'
+          - Key: "Project"
+            Value: !Ref ProjectName
+          - Key: "Environment"
+            Value: !Ref ProjectEnvironment
+          - Key: "Stack"
+            Value: !Ref AWS::StackName
+          - Key: "CreatedBy"
+            Value: !Ref CreatedBy
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AdministratorAccess
+  CfnUserPolicy:
+     Type: AWS::IAM::ManagedPolicy
+     Properties:
+       ManagedPolicyName: !Sub '${ProjectName}-CfnUserPolicy-${ProjectEnvironment}'
+       Path: /
+       PolicyDocument:
+         Version: 2012-10-17
+         Statement:
+         - Action:
+            - "cloudformation:CreateStack"
+            - "cloudformation:DeleteStack"
+            - "cloudformation:DescribeStacks"
+            - "cloudformation:UpdateStack"
+            - "cloudformation:CreateChangeSet"
+            - "cloudformation:DeleteChangeSet"
+            - "cloudformation:DescribeChangeSet"
+            - "cloudformation:ExecuteChangeSet"
+            - "cloudformation:SetStackPolicy"
+            - "cloudformation:ValidateTemplate"
+            - "iam:PassRole"
+           Effect: Allow
+           Resource:
+           - !GetAtt CfnServiceRole.Arn
+         - Action:
+           - cloudformation:CreateStack
+           - cloudformation:DeleteStack
+           - cloudformation:CreateUploadBucket
+           Effect: Allow
+           Resource: "*"
+         - Action:
+           - s3:PutObject
+           - s3:GetObject
+           - s3:ListBucket
+           Effect: Allow
+           Resource:
+           - arn:aws:s3:::cf-templates-*
+           - arn:aws:s3:::cf-templates-*/*
+Outputs:
+  CodebuildRoleArn:
+    Value: !GetAtt CodebuildRole.Arn
+  CodepipelineRoleArn:
+    Value: !GetAtt CodepipelineRole.Arn
+  CfnServiceRoleArn:
+    Value: !GetAtt CfnServiceRole.Arn

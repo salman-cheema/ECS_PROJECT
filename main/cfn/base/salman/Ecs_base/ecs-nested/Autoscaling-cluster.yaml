@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  LaunchConfigurationEcsWorkers:
+    Type: 'String'
+    Description: LaunchConfigurationName for Autscaling.
+  SubnetId1:
+    Type: String
+    Default: 'subnet-04843ac6406964de1'
+Resources:
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - Fn::Select:
+            - 0
+            - Fn::GetAZs:
+                Ref: AWS::Region
+      VPCZoneIdentifier:
+        - !Ref SubnetId1
+      LaunchConfigurationName: !Ref LaunchConfigurationEcsWorkers
+      MinSize: 2
+      MaxSize: 5
+      DesiredCapacity: 2
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-EcsWorker-${ProjectEnvironment}'
+          PropagateAtLaunch: true
+        - Key: "Project"
+          Value: !Ref ProjectName
+          PropagateAtLaunch: true
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+          PropagateAtLaunch: true
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+          PropagateAtLaunch: true
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+          PropagateAtLaunch: true
+      
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+        SuspendProcesses:
+          - HealthCheck
+          - ReplaceUnhealthy
+          - AZRebalance
+          - AlarmNotification
+          - ScheduledActions
+#By using target tracking I have done it we can use simplescaling, stepscaling as well with it for cluster scaling.
+  ScalingPolicyCluster:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref ECSAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      Cooldown: 120
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 10.0
+    DependsOn: ECSAutoScalingGroup

@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template will create sns topic and that topic will have subscriber as lambda
+Parameters:
+  LambdaArn:
+    Description:  This is the lambda which sns will trigger whrn it get notify from sns
+    Type: String
+  projectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  projectEnvironment:
+    Type : 'String'
+    Default: 'dev'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  SNSTriggerLambda:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SNSTriggerLambda
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${projectName}-SNS-Trigger-Lambda-${projectEnvironment}'
+        - Key: "Project"
+          Value: !Ref projectName
+        - Key: "Environment"
+          Value: !Ref projectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+  lambdaSubscriber:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: !Ref LambdaArn
+      Protocol: lambda
+      TopicArn: !Ref SNSTriggerLambda
+Outputs:
+  SNSArn:
+    Description: This is arn of sns which will be used in cloudwatch alarm. 
+    Value: !Ref SNSTriggerLambda
+    Export: 
+      Name: SNSArn

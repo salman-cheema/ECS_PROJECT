@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  ClusterName:
+    Type: 'String'
+    Description: Give the name of cluster with which ecs agent try to connect, which we have installed
+    #using bootstraping.
+  EcsAmi:
+    Description: This is the ami which is recommended by AWS and it is configured for ECS.
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: "/aws/service/ecs/optimized-ami/amazon-linux/recommended/image_id"
+  InstanceType:
+    Type: String
+    Default: t2.micro
+  KeyName:
+    Type: String
+  EC2InstanceProfile:
+    Type: String
+  EcsInstanceSecurityGroup:
+    Type: String
+  SubnetId1:
+    Type: String
+Resources:
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - Fn::Select:
+            - 0
+            - Fn::GetAZs:
+                Ref: AWS::Region
+      VPCZoneIdentifier:
+        - !Ref SubnetId1
+      LaunchConfigurationName: !Ref ContainerInstances
+      MinSize: 2
+      MaxSize: 5
+      DesiredCapacity: 2
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-EcsWorkersAutoScalingGroup-${ProjectEnvironment}'
+          PropagateAtLaunch: true
+        - Key: "Project"
+          Value: !Ref ProjectName
+          PropagateAtLaunch: true
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+          PropagateAtLaunch: true
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+          PropagateAtLaunch: true
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+          PropagateAtLaunch: true
+      
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+        SuspendProcesses:
+          - HealthCheck
+          - ReplaceUnhealthy
+          - AZRebalance
+          - AlarmNotification
+          - ScheduledActions
+# By using target tracking i have done it we can use simplescaling, stepscaling as well with it for cluster scaling.
+  ScalingPolicyCluster:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref ECSAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      Cooldown: 120
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 10.0
+    DependsOn: ECSAutoScalingGroup
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref EcsAmi
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref KeyName
+      AssociatePublicIpAddress: true
+      SecurityGroups:
+        - Ref: EcsInstanceSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Sub: "#!/bin/bash\nyum install -y aws-cfn-bootstrap\n/opt/aws/bin/cfn-init
+            -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ContainerInstances\n/opt/aws/bin/cfn-signal
+            -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSAutoScalingGroup\n\nexec
+            2>>/var/log/ecs/ecs-agent-install.log\nset -x\nuntil curl -s http://localhost:51678/v1/metadata\ndo\n
+            \  sleep 1\ndone\ndocker plugin install rexray/ebs REXRAY_PREEMPT=true
+            EBS_REGION=us-east-1 --grant-all-permissions\nstop ecs \nstart ecs\n"
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              aws-cli: []
+              jq: []
+              ecs-init: []
+          commands:
+            01_add_instance_to_cluster:
+              command:
+                Fn::Sub: echo ECS_CLUSTER=${ClusterName} >> /etc/ecs/ecs.config
+            02_start_ecs_agent:
+              command: start ecs
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              mode: 256
+              owner: root
+              group: root
+              content:
+                Fn::Sub: |
+                  [main]
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content:
+                Fn::Sub: |
+                  [cfn-auto-reloader-hook]
+                  triggers=post.update
+                  path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
+                  action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ContainerInstances
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+Outputs:
+  LaunchConfigurationEcsWorkers:
+    Description: This is the configuration of all the EC2 worker which will be launched inside ECS cluster.
+    Value: !Ref ContainerInstances

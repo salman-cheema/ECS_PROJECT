@@ -1,0 +1,163 @@
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  KeyName:
+    Default: salman_devops
+    Type: 'String'
+  FlaskImage:
+    Type: 'String'
+  VPCID:
+    Type: String
+  SubnetId1:
+    Type: String
+  SubnetId2:
+    Type: String
+  TemplateURLPath:
+    Type: 'String'
+    Description: S3 path where all child stack are stored.
+Resources:
+  CreateCluster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/create-cluster.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy 
+  CreateEcsWorkerRole:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/ecs-workers-role.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+    DependsOn: CreateCluster
+  CreateEcsWorkerSecurityGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/ecs-workers-securitygroup.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        VPCID: !Ref VPCID
+    DependsOn: CreateEcsWorkerRole
+  CreatelaunchConfiguartion:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/create-launchconfiguration.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        ClusterName: !GetAtt CreateCluster.Outputs.ClusterName
+        KeyName: !Ref KeyName
+        SubnetId1: !Ref SubnetId1
+        EC2InstanceProfile: !GetAtt CreateEcsWorkerRole.Outputs.EC2InstanceProfile
+        EcsInstanceSecurityGroup: !GetAtt CreateEcsWorkerSecurityGroup.Outputs.EcsInstanceSecurityGroup
+    DependsOn: CreateEcsWorkerSecurityGroup
+  CreateEcsLogGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/log-group.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+    DependsOn: CreatelaunchConfiguartion
+  CreateEcsServiceDiscovery:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/service-discovery.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        VPCID: !Ref VPCID
+    DependsOn: CreateEcsLogGroup
+  CreateEcstaskDefinition:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/ecs-task-definition.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        NamespaceId: !GetAtt CreateEcsServiceDiscovery.Outputs.NamespaceId
+        MongoServiceDiscoveryName: !GetAtt CreateEcsServiceDiscovery.Outputs.MongoServiceDiscovery
+        FlaskImage: !Ref FlaskImage
+        LogGroupName: !GetAtt CreateEcsLogGroup.Outputs.LogGroup
+    DependsOn: CreateEcsServiceDiscovery
+  CreateEcstaskLoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/Ecs-loadbalancer.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        EcsInstanceSecurityGroup: !GetAtt CreateEcsWorkerSecurityGroup.Outputs.EcsInstanceSecurityGroup
+        VPCID: !Ref VPCID
+        SubnetId2: !Ref SubnetId2
+        SubnetId1: !Ref SubnetId1
+    DependsOn: CreateEcstaskDefinition
+  CreateEcsServices:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/Ecs-services.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        EcsInstanceSecurityGroup: !GetAtt CreateEcsWorkerSecurityGroup.Outputs.EcsInstanceSecurityGroup
+        SubnetId2: !Ref SubnetId2
+        SubnetId1: !Ref SubnetId1
+        TaskdefinitionFlask: !GetAtt CreateEcstaskDefinition.Outputs.TaskdefinitionFlask
+        TaskdefinitionMongo: !GetAtt CreateEcstaskDefinition.Outputs.TaskdefinitionMongo
+        ClusterName: !GetAtt CreateCluster.Outputs.ClusterName
+        FlaskTargetgroup: !GetAtt CreateEcstaskLoadBalancer.Outputs.FlaskTargetgroupArn
+        ContainerDefinitionFlask: !GetAtt CreateEcstaskDefinition.Outputs.ContainerDefinitionFlask
+        MongoServiceDiscoveryArn: !GetAtt CreateEcsServiceDiscovery.Outputs.MongoServiceDiscoveryArn
+    DependsOn: CreateEcstaskLoadBalancer
+  CreateEcsApplicationAutoscalingRole:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/application-autoscaling-role.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+    DependsOn: CreateEcsServices
+  CreateEcsApplicationAutoscaling:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/application-autoscaling.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+        ClusterName: !GetAtt CreateCluster.Outputs.ClusterName
+        FlaskServiceName: !GetAtt CreateEcsServices.Outputs.FlaskServiceName
+        ApplicationAutoScalingRoleArn: !GetAtt CreateEcsApplicationAutoscalingRole.Outputs.ApplicationAutoScalingRoleArn
+    DependsOn: CreateEcsApplicationAutoscalingRole

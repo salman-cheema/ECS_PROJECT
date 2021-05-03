@@ -1,0 +1,115 @@
+Parameters:
+  projectName:
+    Type : 'String'
+    Default: 'nbs'
+    Description: Identifies a Project Name
+  projectEnvironment:
+    Type : 'String'
+    Default: 'dev'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  lambdaexecrole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Allow lambda to use other services
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${projectName}-LambdaRole-${projectEnvironment}'
+        - Key: "Project"
+          Value: !Ref projectName
+        - Key: "Environment"
+          Value: !Ref projectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      RoleName: "lambda_basic"   #!Sub '${projectName}-LambdaRole-${projectEnvironment}'
+      Policies:
+        - 
+          PolicyName: "lambda_cloudwatch"  #well defined names
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - 
+                Effect: "Allow"
+                Action: "s3:*"
+                Resource: "*"
+              - 
+                Effect: "Allow"
+                Action: "ses:*"
+                Resource: "*"
+              -
+                Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+  CloudwatchAgentRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Permissions required to use AmazonCloudWatchAgent on servers
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${projectName}-CloudwatchAgentRole-${projectEnvironment}'
+        - Key: "Project"
+          Value: !Ref projectName
+        - Key: "Environment"
+          Value: !Ref projectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      RoleName: "CloudwatchAgentRole"  #Name
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      # Policies:
+      #   - 
+      #     PolicyName: "CloudwatchAgentPolicy"
+      #     PolicyDocument:
+      #       Version: "2012-10-17"
+      #       Statement:
+      #         -
+      #           Effect: "Allow"
+      #           Action:
+      #             - "cloudwatch:PutMetricData"
+      #             - "ec2:DescribeVolumes"
+      #             - "ec2:DescribeTags"
+      #             - "logs:PutLogEvents"
+      #             - "logs:DescribeLogStreams"
+      #             - "logs:DescribeLogGroups"
+      #             - "logs:CreateLogStream"
+      #             - "logs:CreateLogGroup"
+      #           Resource: "*"
+
+Outputs:
+  LambdaRoleArn:
+    Value: !GetAtt lambdaexecrole.Arn
+    Export:
+      Name: LambdaRoleArn   # well defined
+  EC2CloudWatchAgentRole:
+    Value: !Ref CloudwatchAgentRole

@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  ClusterName:
+    Type: 'String'
+  TaskdefinitionFlask:
+    Type: 'String'
+  TaskdefinitionMongo:
+    Type: 'String'
+  SubnetId1:
+    Type: 'String'
+  SubnetId2:
+    Type: 'String'
+  EcsInstanceSecurityGroup:
+    Type: 'String'
+  FlaskTargetgroup:
+    Type: 'String'
+  ContainerDefinitionFlask:
+    Type: 'String'
+  MongoServiceDiscoveryArn:
+    Type: 'String'
+Resources:
+  FlaskService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ClusterName
+      ServiceName: !Sub '${ProjectName}-FlaskService-${ProjectEnvironment}'
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-FlaskService-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskdefinitionFlask
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: !Ref ContainerDefinitionFlask
+          ContainerPort: 5011
+          TargetGroupArn: !Ref FlaskTargetgroup
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref EcsInstanceSecurityGroup
+          Subnets:
+            - !Ref SubnetId1
+            - !Ref SubnetId2
+  MongoService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ClusterName
+      ServiceName: !Sub '${ProjectName}-Mongo-${ProjectEnvironment}'
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-Mongo-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      DesiredCount: 1
+      TaskDefinition: !Ref TaskdefinitionMongo
+      LaunchType: EC2
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - !Ref EcsInstanceSecurityGroup
+          Subnets:
+            - !Ref SubnetId1
+      ServiceRegistries:
+        - RegistryArn: !Ref MongoServiceDiscoveryArn
+          Port: 80
+Outputs:
+  FlaskServiceName:
+    Description: This is required for the ApplicationAutoScaling::ScalableTarget.
+    Value: !GetAtt FlaskService.Name

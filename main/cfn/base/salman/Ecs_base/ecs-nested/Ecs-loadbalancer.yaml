@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  SubnetId1:
+    Type: 'String'
+  SubnetId2:
+    Type: 'String'
+  VPCID:
+    Type: 'String'
+  EcsInstanceSecurityGroup:
+    Type: 'String'
+Resources:
+  FlaskTargetgroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      Tags:
+        - Key: "Name"
+          Value:  !Sub '${ProjectName}-flask-target-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: '/'
+      HealthCheckPort: '5011'
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      Name: !Sub '${ProjectName}-flask-target-${ProjectEnvironment}'
+      Port: 5011
+      Protocol: 'HTTP'
+      TargetType: 'ip'
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref VPCID
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-lb-flask-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      Name: !Sub '${ProjectName}-lb-flask-${ProjectEnvironment}'
+      Subnets: 
+        - !Ref SubnetId1
+        - !Ref SubnetId2
+      SecurityGroups:
+        - !Ref EcsInstanceSecurityGroup
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FlaskTargetgroup
+    DependsOn: LoadBalancer
+Outputs:
+  FlaskTargetgroupArn:
+    Description: All the container of Flask will be under this target group by ip.
+    Value: !Ref FlaskTargetgroup

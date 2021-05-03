@@ -1,0 +1,56 @@
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'testing'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+  TemplateURLPath:
+    Type: 'String'
+    Default: 'https://s3.amazonaws.com/salman-cloudformation-scripts/project/ecs'
+    Description: S3 path where all child stack are stored.
+Resources:
+  RoleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/ecs-roles.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+  FlaskCodeBuild:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/create_code_build.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        RepoName: !ImportValue SalmanRepoName
+        BranchName: flask_code # hardcoded
+        CodeBuildRole: !GetAtt RoleStack.Outputs.CodebuildRoleArn
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+    DependsOn: RoleStack
+  EcsCodePipeline:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub '${TemplateURLPath}/codepipeline_ecs_vpc.yaml'
+      TimeoutInMinutes: '60'
+      Parameters:
+        ConfigProjectName: !GetAtt FlaskCodeBuild.Outputs.ConfigProjectName
+        CodePipelineArn: !GetAtt RoleStack.Outputs.CodepipelineRoleArn
+        CloudFormationRoleArn: !GetAtt RoleStack.Outputs.CfnServiceRoleArn
+        ParamJson: 'ecs-param.json' #hardcoded
+        TemplateFile: 'vpc_ecs_nested.yaml' #hardcoded
+        BranchName: flask_code #hardcoded
+        RepoName: !ImportValue SalmanRepoName
+        ProjectName: !Ref ProjectName
+        ProjectEnvironment: !Ref ProjectEnvironment
+        CreatedBy: !Ref CreatedBy
+    DependsOn: FlaskCodeBuild

@@ -1,0 +1,37 @@
+Resources:
+  RoleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/templates/Template_roles.yaml"
+      TimeoutInMinutes: '60'
+  cflambdastack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/templates/ses_lambda.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        LambdaRoleArn: !GetAtt RoleStack.Outputs.LambdaRoleArn
+          # Fn::ImportValue: LambdaRoleArn
+    DependsOn: RoleStack
+  SnSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/templates/sns_trigger_lambda.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        LambdaArn: !GetAtt cflambdastack.Outputs.LambdaArn
+          # Fn::ImportValue: LambdaArn
+    DependsOn: cflambdastack
+  EC2Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://s3.amazonaws.com/salman-cloudformation-scripts/templates/cloudwatch_custommetrics.yaml"
+      TimeoutInMinutes: '60'
+      Parameters:
+        SNSArn: !GetAtt SnSStack.Outputs.SNSArn
+        # IAMRole: !GetAtt RoleStack.Outputs.EC2CloudWatchAgentRole
+          # Fn::ImportValue: SNSArn
+    DependsOn: SnSStack
+Outputs:
+  OutputFromNestedStack:
+    Value: !GetAtt RoleStack.Outputs.LambdaRoleArn

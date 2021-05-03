@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ProjectName:
+    Type : 'String'
+    Default: 'ecs'
+    Description: Identifies a Project Name
+  ProjectEnvironment:
+    Type : 'String'
+    Default: 'test'
+    Description: Identifies a Project Environment
+  CreatedBy:
+    Type : 'String'
+    Default: 'Suleman'
+Resources:
+  ApplicationAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub '${ProjectName}-application-service-auto-scaling-role-${ProjectEnvironment}'
+        - Key: "Project"
+          Value: !Ref ProjectName
+        - Key: "Environment"
+          Value: !Ref ProjectEnvironment
+        - Key: "Stack"
+          Value: !Ref AWS::StackName
+        - Key: "CreatedBy"
+          Value: !Ref CreatedBy
+      RoleName: !Sub '${ProjectName}-application-service-auto-scaling-role-${ProjectEnvironment}'
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [application-autoscaling.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-service-auto-scaling-policy-${ProjectEnvironment}'
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DeleteAlarms
+                Resource:
+                  - "*"
+Outputs:
+  ApplicationAutoScalingRoleArn:
+    Description: This role is required for autoscaling of service in ecs.
+    Value: !GetAtt ApplicationAutoScalingRole.Arn
