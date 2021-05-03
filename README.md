@@ -1,7 +1,7 @@
 ## ECS ::
  Is a service which manage container service,it is not product.
  It maintain availablity of the application and allow every user to scale containers when necessary.
-## FOR ECS WITH S3 + SQS + Cloudfomation + AUtoscaling follow this link.
+- FOR ECS WITH S3 + SQS + Cloudfomation + Autoscaling follow this link.
 - https://github.com/aws-samples/ecs-refarch-batch-processing
 
 
