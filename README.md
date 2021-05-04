@@ -1,6 +1,5 @@
 ## ECS ::
- Is a service which manage container service,it is not product.
- It maintain availablity of the application and allow every user to scale containers when necessary.
+Is a service that manages container service, it is not a product. It maintains the availability of the application and allows every user to scale containers when necessary.
 - FOR ECS WITH S3 + SQS + Cloudfomation + Autoscaling follow this link.
 - https://github.com/aws-samples/ecs-refarch-batch-processing
 
@@ -9,11 +8,10 @@
 ## ECS EXAMPLPE:::
   - GOAL
      - Mongo database should be installed/running in private
-     - Flask app should be running and it should connect to mongo 
-     - Application load balancer in front of Flask app to distribute the traffic
-     - Every thing should be dockerized.
-We will achieve this `dockerized goal` with the help of docker and and maintain it's 
-orchestration with `ECS`.
+     - Flask app should be running and it should connect to mongo
+     - The application load balancer in front of Flask app to distribute the traffic.
+     - Everything should be dockerized.
+     - We will achieve this dockerized goal with the help of docker and maintain its orchestration with ECS.
 - STEP 1::
   -  Create a `cluster`
       - Name
@@ -21,15 +19,15 @@ orchestration with `ECS`.
       - Type of Instances
       - VPC , Security group and roles
 - STEP 2::
-  - Create a `Task Definition` for Mongo
-  `Task Definition` it is related to container image , cpu , memory , we say it as `Task`
-   we create a task definition for every new `image` 
+  - Create a Task Definition , Task Definition is related to the container image , CPU, memory , we say it as Task we create a task definition for every new image
     - Type ( Faragate or EC2)
     - Name
-    - `Task` Role `Optional IAM role that tasks can use to make API requests to authorized AWS services.`
-    - Task execution role 
-       - `This role is required by tasks to pull container images and publish container logs to Amazon CloudWatch on your behalf. If you do not    have the ecsTaskExecutionRole already, we can create one for you.` 
-    - Task size   The task size allows you to specify a fixed size for your task
+    - `Task Role Optional IAM role that tasks can use to make API requests to authorized AWS services.`
+    - Task execution role.
+    
+        `This role is required by tasks to pull container images and publish container logs to Amazon CloudWatch on your behalf. If you do not have the ecsTaskExecutionRole already, we can create one for you.` 
+       - 
+    - Task size The task size allows you to specify a fixed size for your task
        - Task memory (GB)    The amount of memory (in MiB) used by the task.
        - Task CPU (vCPU)     The number of CPU units used by the task
     - Container Definitions
@@ -41,7 +39,7 @@ orchestration with `ECS`.
           many more things which are not done yet.
 - STEP 3::
   - Create Service for Mongo:
-     - A service lets you specify how many copies of your task definition to run and maintain in a cluster. You can optionally use an Elastic     Load Balancing load balancer to distribute incoming traffic to containers in your service. Amazon ECS maintains that number of tasks and   coordinates task scheduling with the load balancer. You can also optionally use Service Auto Scaling to adjust the number of tasks in      your service.
+     - A service lets you specify how many copies of your task definition to run and maintain in a cluster. You can optionally use an Elastic Load Balancing load balancer to distribute incoming traffic to containers in your service. Amazon ECS maintains that the number of tasks and coordinates task scheduling with the load balancer. You can also optionally use Service Auto Scaling to adjust the number of tasks in your service.
     - Launch type
     - Task Definition
        - Family (name of task defintion which you have created in task definition)
