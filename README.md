@@ -13,14 +13,14 @@
      - Application load balancer in front of Flask app to distribute the traffic
      - Every thing should be dockerized.
 We will achieve this `dockerized goal` with the help of docker and and maintain it's 
-orchestration with `ECS`
-STEP 1::
+orchestration with `ECS`.
+- STEP 1::
   -  Create a `cluster`
       - Name
       - Number of Instances
       - Type of Instances
       - VPC , Security group and roles
-STEP 2::
+- STEP 2::
   - Create a `Task Definition` for Mongo
   `Task Definition` it is related to container image , cpu , memory , we say it as `Task`
    we create a task definition for every new `image` 
@@ -39,7 +39,7 @@ STEP 2::
           - Port mappings of conatiner
           - Environment variables that you want to pass to conatiner
           many more things which are not done yet.
-STEP 3::
+- STEP 3::
   - Create Service for Mongo:
      - A service lets you specify how many copies of your task definition to run and maintain in a cluster. You can optionally use an Elastic     Load Balancing load balancer to distribute incoming traffic to containers in your service. Amazon ECS maintains that number of tasks and   coordinates task scheduling with the load balancer. You can also optionally use Service Auto Scaling to adjust the number of tasks in      your service.
     - Launch type
@@ -85,7 +85,7 @@ STEP 3::
           example which we have discuss in load balancing
     - ` Auto scaling `
         Automatically adjust your service’s desired count up and down within a specified range in response to CloudWatch alarms. You can modify your Service Auto Scaling configuration at any time to meet the needs of your application.
-STEP 4::
+- STEP 4::
   - I have created a flask image in that flask app it access mongodb and show the dbs inside it.
   - Then I have uploaded the flask image to docker hub
   - created a task defintion for flask
